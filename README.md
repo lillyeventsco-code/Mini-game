@@ -5,7 +5,7 @@ A tiny, cozy gardening game for iPhone. Plant seeds, water sprouts, pick flowers
 ## How to play
 
 - **Tap empty soil** to plant the selected seed.
-- **Tap a sprout** to water it. The droplet shows how much water is left. Plants never wilt; they just pause until watered.
+- **Tap a sprout** to water it. Keep tapping to make it grow faster (up to 5x speed); the boost fades a moment after you stop. The droplet shows how much water is left. Plants never wilt; they just pause until watered.
 - **Tap a bloom** to pick it for acorns, and sometimes seeds back.
 - **Tap Pip** for a pat. Once a day, Pip finds you 5 acorns.
 - Spend acorns in the **Seed shop** on new seeds and garden patches. Picking a flower unlocks the next kind.

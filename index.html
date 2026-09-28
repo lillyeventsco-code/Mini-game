@@ -266,12 +266,17 @@
   const bloomed = p => p && p.g >= PLANTS[p.t].grow;
   const typeUnlocked = id => { const i = ORDER.indexOf(id); return i === 0 || (S.harvested[ORDER[i - 1]] || 0) > 0; };
 
+  // Each tap on a growing plant adds 1 to its boost (max MAX_BOOST).
+  // Growth speed is (1 + boost)x, and boost fades by BOOST_FADE per second.
+  const MAX_BOOST = 4, BOOST_FADE = 0.8;
   function growPlot(p, dt, raining) {
     const P = PLANTS[p.t];
-    if (p.g >= P.grow) return;
+    if (p.g >= P.grow) { p.b = 0; return; }
+    const boost = dt > 1 ? 0 : (p.b || 0);   // no boost during away-time catch-up
+    p.b = dt > 1 ? 0 : Math.max(0, boost - dt * BOOST_FADE);
     if (raining) p.w = 1;
     if (p.w <= 0) return;
-    p.g = Math.min(P.grow, p.g + Math.min(dt, p.w * WATER_SECS));
+    p.g = Math.min(P.grow, p.g + Math.min(dt, p.w * WATER_SECS) * (1 + boost));
     p.w = Math.max(0, p.w - dt / WATER_SECS);
   }
 
@@ -558,6 +563,7 @@
     pet: () => { tone(660, .18, 'sine', .08); tone(880, .25, 'sine', .07, .1); },
     buy: () => { tone(587.33, .15, 'triangle', .08); tone(880, .3, 'triangle', .08, .08); },
     tap: () => tone(740, .1, 'sine', .05),
+    boost: b => tone(523.25 * Math.pow(2, b / 5), .12, 'triangle', .06),
     nope: () => tone(220, .2, 'triangle', .07),
   };
   function musicTick(dt, night) {
@@ -606,7 +612,7 @@
     const empty = plots.some(o => !o.p), have = (S.seeds[S.selected] || 0) > 0;
     if (empty && have) return `Tap empty soil to plant a ${PLANTS[S.selected].name.toLowerCase()} seed.`;
     if (empty && !ORDER.some(id => S.seeds[id] > 0)) return 'Out of seeds. Visit the seed shop.';
-    return 'Growing… Pip is keeping watch.';
+    return 'Tap growing plants to help them grow faster!';
   }
 
   // ---------- Actions ----------
@@ -626,9 +632,12 @@
       return;
     }
     if (bloomed(p)) return harvest(i);
+    const wasDry = p.w < .9;
     p.w = 1;
-    burst(cx, cy - r.s * .2, 'drop', 10, ['#8FD0F5', '#B7E3FA']);
-    sfx.water(); save();
+    p.b = Math.min(MAX_BOOST, (p.b || 0) + 1);
+    if (wasDry) { burst(cx, cy - r.s * .2, 'drop', 10, ['#8FD0F5', '#B7E3FA']); sfx.water(); }
+    else { burst(cx, cy - r.s * .25, 'spark', 4, ['#FFFFFF', '#B8F0A8', '#F6D36B']); sfx.boost(p.b); }
+    save();
   }
 
   function harvest(i) {
@@ -927,6 +936,15 @@
       const p = S.plots[i]; if (!p || !isUnlocked(i)) continue;
       const r = plotRect(i), f = p.g / PLANTS[p.t].grow;
       drawPlant(c, p.t, f, r.x + r.s / 2, r.y + r.s * .68, r.s, T);
+      if (p.b > 0 && f < 1) {
+        c.globalAlpha = Math.min(1, p.b / 2);
+        for (let k = 0; k < Math.ceil(p.b); k++) {
+          const a = T * 3 + k * TAU / Math.ceil(p.b), rx = r.x + r.s / 2 + Math.cos(a) * r.s * .3;
+          const ry = r.y + r.s * .45 + Math.sin(a) * r.s * .12 - ((T * 40 + k * 17) % (r.s * .3));
+          drawSpark(c, rx, ry, 3.5, '#FFFFFF');
+        }
+        c.globalAlpha = 1;
+      }
       if (f >= 1) {
         const [hx2, hy2] = headPos(p.t, r.x + r.s / 2, r.y + r.s * .68, r.s);
         c.globalAlpha = .5 + .5 * Math.sin(T * 3 + i);
